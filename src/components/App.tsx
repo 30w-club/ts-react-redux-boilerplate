@@ -1,15 +1,87 @@
 import * as React from 'react';
+import { connect } from 'react-redux';
+import { AppState } from '../store'
 
-import PageInterface from '../PageInterface';
+import { SystemState } from '../store/system/types'
+import { ChatState } from '../store/chat/types'
 
-class App extends React.Component<PageInterface, {}> {
+import { updateSession } from '../store/system/actions'
+import { sendMessage } from '../store/chat/actions'
+import { thunkSendMessage } from '../thunks';
+import ChatHistory from './ChatHistory';
+import ChatInterface from './ChatInterface';
+
+interface AppProps {
+  sendMessage: typeof sendMessage,
+  updateSession: typeof updateSession,
+  chat: ChatState,
+  system: SystemState,
+  thunkSendMessage: any
+}
+
+export type UpdateMessageParam = React.SyntheticEvent<{ value: string }>
+
+class App extends React.Component<AppProps> {
+  state = {
+    message: ''
+  }
+
+  componentDidMount() {
+    this.props.updateSession({
+      loggedIn: true,
+      session: "my_session",
+      userName: "My Name"
+    })
+
+    this.props.sendMessage({
+      user: "Chat Bot",
+      message: "This is a very basic chat application written in typescript using react and redux. Feel free to explore the source code.",
+      timestamp: new Date().getTime()
+    })
+
+    this.props.thunkSendMessage("This message was sent by a thunk!")
+  }
+
+  updateMessage = (event: UpdateMessageParam) => {
+    this.setState({
+      message: event.currentTarget.value
+    })
+  }
+
+  sendMessage = (message: string) => {
+    this.props.sendMessage({
+      user: this.props.system.userName,
+      message: message,
+      timestamp: new Date().getTime()
+    })
+
+    this.setState({
+      message: ''
+    })
+  }
+
   render() {
-    return (<div>
-      <h1>Welcome to React with Typescript</h1>
-      <p>The color of this page is: {this.props.color}</p>
-    </div>
+    return (
+      <div>
+        <ChatHistory messages={this.props.chat.messages} />
+        <ChatInterface 
+          userName={this.props.system.userName}
+          message={this.state.message}
+          updateMessage={this.updateMessage}
+          sendMessage={this.sendMessage}
+        />
+      </div>
     );
   }
 }
 
-export default App;
+const mapStateToProps = (state: AppState) => ({
+  system: state.system,
+  chat: state.chat
+})
+
+export default connect(mapStateToProps, {
+  sendMessage,
+  updateSession,
+  thunkSendMessage
+})(App);
